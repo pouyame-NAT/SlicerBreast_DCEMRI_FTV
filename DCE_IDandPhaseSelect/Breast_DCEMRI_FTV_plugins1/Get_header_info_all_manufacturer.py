@@ -23,7 +23,6 @@
 
 
 import pydicom
-import dicom
 import os
 import re
 import numpy as np
@@ -69,8 +68,7 @@ class FolderInfo:
                     header = pydicom.dcmread(img1path,stop_before_pixels = True,force=True)
                     headerend = pydicom.dcmread(imgendpath,stop_before_pixels = True,force=True)
                 except:
-                    header = dicom.read_file(img1path)
-                    headerend = dicom.read_file(imgendpath)
+                    raise RuntimeError("Unable to read DICOM header from " + str(img1path))
 
             #fill header info
             self.studydate = header.StudyDate

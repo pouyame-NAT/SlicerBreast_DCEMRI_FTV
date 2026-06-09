@@ -34,65 +34,37 @@ import vtk, qt, ctk, slicer
 from vtk.util.numpy_support import vtk_to_numpy
 from vtk.util import numpy_support
 from slicer.ScriptedLoadableModule import *
-from slicer.util import VTKObservationMixin
 import numpy as np
-
-try:
-  import pydicom
-except:
-  slicer.util.pip_install('pydicom')
-  import pydicom
-
-try:
-  import dicom
-except:
-  slicer.util.pip_install('dicom')
-  import dicom
+import pydicom
 
 import time
 import datetime
-
-try:
-  import nibabel as nib
-except:
-  slicer.util.pip_install('nibabel')
-  import nibabel as nib
-
-try:
-  import cv2
-except:
-  slicer.util.pip_install('opencv-python')
-  import cv2
-
-try:
-  import nrrd
-except:
-  slicer.util.pip_install('pynrrd')
-  import nrrd
-
 import sys
 import pickle
 import pathlib
 
-try:
-  import yattag
-except:
-  slicer.util.pip_install('yattag')
-  import yattag
+def _pipEnsure(package):
+  try:
+    import slicer.packaging
+    slicer.packaging.pip_ensure(package, requester="Breast_DCEMRI_FTV")
+  except AttributeError:
+    slicer.util.pip_install(package)
 
-try:
-  import matplotlib
-except:
-  slicer.util.pip_install('matplotlib')
-  import matplotlib
+def _importOptional(package, moduleName=None):
+  moduleName = moduleName or package
+  try:
+    return __import__(moduleName)
+  except ImportError:
+    _pipEnsure(package)
+    return __import__(moduleName)
 
+nib = _importOptional('nibabel')
+cv2 = _importOptional('cv2', 'cv2')
+nrrd = _importOptional('pynrrd', 'nrrd')
+yattag = _importOptional('yattag')
+matplotlib = _importOptional('matplotlib')
 import matplotlib.pyplot as plt
-
-try:
-  import skimage
-except:
-  slicer.util.pip_install('scikit-image')
-  import skimage
+skimage = _importOptional('scikit-image', 'skimage')
 
 #imports of my functions
 #7/27/2021: Replace individual imports with Plugin folder import
@@ -792,10 +764,9 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
     #Call function that returns RAS coordinate center and radius give input volume and IJK coordinate center and radius
     roicenter_RAS, roiradius_RAS = IJKToRASFunc(roicenter,roiradius,inputVolume)
 
-    self.roi = slicer.vtkMRMLMarkupsLineNode()
-    self.roi.SetXYZ(roicenter_RAS)
-    self.roi.SetRadiusXYZ(roiradius_RAS)
-    slicer.mrmlScene.AddNode(self.roi)
+    self.roi = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
+    self.roi.SetXYZ(roicenter_RAS[0], roicenter_RAS[1], roicenter_RAS[2])
+    self.roi.SetRadiusXYZ(roiradius_RAS[0], roiradius_RAS[1], roiradius_RAS[2])
 
     self.switchimage = True #variable to prevent calling of adjust window level function while changing image
                             #displayed from dropdown menu
@@ -859,11 +830,11 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
     self.omitCount = 0
 
     #5 omit regions max. These are stored in distinct attributes of widget class object
-    self.omit1 = slicer.vtkMRMLMarkupsLineNode()
-    self.omit2 = slicer.vtkMRMLMarkupsLineNode()
-    self.omit3 = slicer.vtkMRMLMarkupsLineNode()
-    self.omit4 = slicer.vtkMRMLMarkupsLineNode()
-    self.omit5 = slicer.vtkMRMLMarkupsLineNode()
+    self.omit1 = slicer.vtkMRMLMarkupsROINode()
+    self.omit2 = slicer.vtkMRMLMarkupsROINode()
+    self.omit3 = slicer.vtkMRMLMarkupsROINode()
+    self.omit4 = slicer.vtkMRMLMarkupsROINode()
+    self.omit5 = slicer.vtkMRMLMarkupsROINode()
 
     # Save Region to File Button
     #
@@ -988,11 +959,11 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
     self.axchkbox.stateChanged.connect(self.showAxialMIPFromNode)
     self.sagchkbox.stateChanged.connect(self.showSagittalMIPFromNode)
     self.segmentLesionCheckBox.stateChanged.connect(self.segmentLesion) #Edit 7/24/2020: This is now a checkbox option
-    self.applyButton.connect('clicked(bool)', self.onApplyButton)
-    self.addOmitButton.connect('clicked(bool)',self.addOmitRegion)
-    self.importROIButton.connect('clicked(bool)',self.importROIFromFile)
-    self.saveRegionButton.connect('clicked(bool)',self.saveRegionToXML)
-    self.goToROICenterButton.connect('clicked(bool)',self.goToROICenter)
+    self.applyButton.clicked.connect(self.onApplyButton)
+    self.addOmitButton.clicked.connect(self.addOmitRegion)
+    self.importROIButton.clicked.connect(self.importROIFromFile)
+    self.saveRegionButton.clicked.connect(self.saveRegionToXML)
+    self.goToROICenterButton.clicked.connect(self.goToROICenter)
     self.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
 
     #Call function to update text giving axial slice position whenever red slice position is adjusted
@@ -2298,7 +2269,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
         try:
           pre_hdr1 = pydicom.dcmread(pre_img1path,stop_before_pixels = True)
         except:
-          pre_hdr1 = dicom.read_file(pre_img1path)
+          pre_hdr1 = pydicom.dcmread(pre_img1path,stop_before_pixels = True,force=True)
 
         voxsize_mm3 = float(pre_hdr1.PixelSpacing[0])*float(pre_hdr1.PixelSpacing[1])*float(abs(self.aff_mat[2,2])) #voxel size in mm^3
 

@@ -25,7 +25,6 @@
 
 import time
 import pydicom
-import dicom
 import os
 import numpy as np
 

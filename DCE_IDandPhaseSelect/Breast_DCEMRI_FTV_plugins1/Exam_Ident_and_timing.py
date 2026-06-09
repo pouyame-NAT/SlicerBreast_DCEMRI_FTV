@@ -28,7 +28,6 @@ from Breast_DCEMRI_FTV_plugins1 import chooseEarly_LateByManufacturer
 from Breast_DCEMRI_FTV_plugins1 import gzip_gunzip_pyfuncs
 import os
 import pydicom
-import dicom
 import numpy as np
 import slicer
 import qt

@@ -22,7 +22,6 @@
 
 import os
 import pydicom
-import dicom
 import numpy as np
 import re
 
@@ -72,7 +71,7 @@ def computeAffineAndAffineInverse(exampath,prefoldernum,nslice,fsort):
     try:
         img1 = pydicom.dcmread(file1)
     except:
-        img1 = dicom.read_file(file1)
+        img1 = pydicom.dcmread(file1, force=True)
 
     img1_orient = img1[0x20,0x37] #Image Orientation (Patient)
     img1_orient = [float(i) for i in img1_orient] #convert from list of strings to list of floats (numeric)
@@ -109,7 +108,7 @@ def computeAffineAndAffineInverse(exampath,prefoldernum,nslice,fsort):
     try:
         imgN = pydicom.dcmread(fileN)
     except:
-        imgN = dicom.read_file(fileN)
+        imgN = pydicom.dcmread(fileN, force=True)
 
     imgN_pos = imgN[0x20,0x32] #Image Position (Patient) for last slice
     #Next 2 lines convert from header field with values to list of floats
@@ -230,7 +229,7 @@ def getVOIVoxelsFromInverseAffine(exampath,xmlfilepath,prefoldernum,nslice,fsort
     try:
         img1 = pydicom.dcmread(file1)
     except:
-        img1 = dicom.read_file(file1)
+        img1 = pydicom.dcmread(file1, force=True)
 
     voi_mask = np.zeros((int(img1.Rows),int(img1.Columns),len(files)))
     voi_mask[xs:xf,ys:yf,zs:zf] = 1

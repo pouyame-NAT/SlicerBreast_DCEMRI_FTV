@@ -23,7 +23,6 @@
 
 import os
 import pydicom
-import dicom
 
 class GE_TimingInfo:
     def __init__(self,img1path,numpaths):
@@ -33,7 +32,7 @@ class GE_TimingInfo:
             try:
                 header = pydicom.dcmread(img1path,stop_before_pixels = True)
             except:
-                header = dicom.read_file(img1path)
+                header = pydicom.dcmread(img1path, stop_before_pixels=True, force=True)
 
             try:
                 self.contenttime = header[0x8,0x33].value
@@ -110,7 +109,7 @@ class SiemensTimingInfo:
         try:
             header = pydicom.dcmread(img1path,stop_before_pixels = True)
         except:
-            header = dicom.read_file(img1path)
+            header = pydicom.dcmread(img1path, stop_before_pixels=True, force=True)
 
         try:
             self.contenttime = header[0x8,0x33].value #Edit 1/20/2021: See if rounding this to nearest whole number prevents error for 34306 v20
@@ -168,7 +167,7 @@ class PhilipsTimingInfo:
         try:
             header = pydicom.dcmread(img1path,stop_before_pixels = True)
         except:
-            header = dicom.read_file(img1path)
+            header = pydicom.dcmread(img1path, stop_before_pixels=True, force=True)
 
         self.studydate = header.StudyDate
 

@@ -1,0 +1,12 @@
+[project]
+name = "slicer-ext-breast-dcemri-ftv"
+version = "1.0.0"
+description = "Breast DCE-MRI Functional Tumor Volume extension for 3D Slicer"
+requires-python = ">=3.9"
+dependencies = [
+    "nibabel",
+    "opencv-python",
+    "pynrrd",
+    "yattag",
+    "scikit-image",
+]

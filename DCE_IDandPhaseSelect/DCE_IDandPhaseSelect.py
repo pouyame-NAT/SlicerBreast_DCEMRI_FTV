@@ -37,11 +37,19 @@ from qt import *
 from slicer.ScriptedLoadableModule import *
 import logging
 import numpy as np
+import pydicom
+
+def _pipEnsure(package):
+  try:
+    import slicer.packaging
+    slicer.packaging.pip_ensure(package, requester="Breast_DCEMRI_FTV")
+  except AttributeError:
+    slicer.util.pip_install(package)
 
 try:
   import nibabel as nib
-except:
-  slicer.util.pip_install('nibabel')
+except ImportError:
+  _pipEnsure('nibabel')
   import nibabel as nib
 
 from vtk.util.numpy_support import vtk_to_numpy
@@ -50,18 +58,6 @@ from vtk.util import numpy_support
 #from scipy import signal
 import qt
 import re
-
-try:
-  import pydicom
-except:
-  slicer.util.pip_install('pydicom')
-  import pydicom
-
-try:
-  import dicom
-except:
-  slicer.util.pip_install('dicom')
-  import dicom
 
 import math
 
@@ -628,7 +624,7 @@ class DCE_IDandPhaseSelectWidget(ScriptedLoadableModuleWidget):
     self.autoIdCheckBox.stateChanged.connect(self.onApplyButton) #2/11/2021: connect checking the auto folder ID box to onApplyButton function
     self.manualIdCheckBox.stateChanged.connect(self.manualDCESelectMenu) #2/11/2021: connect checking the manual folder ID box to function
                                                                          #for creating (or removing) manual DCE folder selection menu.
-    self.manualSubmitButton.connect('clicked(bool)',self.onApplyButton)
+    self.manualSubmitButton.clicked.connect(self.onApplyButton)
 
     # Add vertical spacer
     self.layout.addStretch(1)

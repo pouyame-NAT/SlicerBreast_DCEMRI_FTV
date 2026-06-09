@@ -28,14 +28,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     #All of the figures (except ser colormap) are using 2nd post-contrast minus pre-contrast
     import slicer
     import matplotlib
-
-    try:
-        import wx
-    except:
-        slicer.util.pip_install('wxPython')
-        import wx
-
-    matplotlib.use('WXAgg')
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.gridspec as gridspec
     import matplotlib.patches as mpatches
@@ -43,7 +36,6 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     import numpy as np
     from skimage import color
     import pydicom
-    import dicom
     import os
 
     import Breast_DCEMRI_FTV_plugins2
@@ -273,7 +265,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     try:
       pre_hdr1 = pydicom.dcmread(pre_img1path,stop_before_pixels = True)
     except:
-      pre_hdr1 = dicom.read_file(pre_img1path)
+      pre_hdr1 = pydicom.dcmread(pre_img1path, stop_before_pixels=True, force=True)
 
 
     #edit 6/11/2020: Split by single vs multi folder DCE instead of non-Philips vs Philips
@@ -302,7 +294,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     try:
         earlyslice1hdr = pydicom.dcmread(earlyslice1path,stop_before_pixels = True)
     except:
-        earlyslice1hdr = dicom.read_file(earlyslice1path)
+        earlyslice1hdr = pydicom.dcmread(earlyslice1path, stop_before_pixels=True, force=True)
 
     #aspect ratio for sagittal images
     #Edit 5/11/2020: Using aff_mat[2,2] instead of hdr.SpacingBetweenSlices to allow aspect ratio definition for Siemens scanner images
@@ -485,7 +477,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     try:
         lateslice1hdr = pydicom.dcmread(lateslice1path,stop_before_pixels = True)
     except:
-        lateslice1hdr = dicom.read_file(lateslice1path)
+        lateslice1hdr = pydicom.dcmread(lateslice1path, stop_before_pixels=True, force=True)
 
     font = {'color': 'yellow','size': 15} #font dictionary settings for orientation labels on images
     fontfov = {'color': 'yellow', 'size': 8} #font dictionary settings for FOV labels on images

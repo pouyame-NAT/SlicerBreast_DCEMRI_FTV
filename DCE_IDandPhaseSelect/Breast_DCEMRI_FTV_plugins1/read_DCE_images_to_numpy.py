@@ -22,7 +22,6 @@
 
 import numpy as np
 import pydicom
-import dicom
 import re
 import os
 import slicer
