@@ -40,9 +40,11 @@ import numpy as np
 import pydicom
 
 def _pipEnsure(package):
+  import importlib
+  import slicer
   try:
-    import slicer.packaging
-    slicer.packaging.pip_ensure(package, requester="Breast_DCEMRI_FTV")
+    packaging = importlib.import_module('slicer.packaging')
+    packaging.pip_ensure(package, requester="Breast_DCEMRI_FTV")
   except (AttributeError, ImportError, ModuleNotFoundError):
     try:
       slicer.util.pip_install(package)

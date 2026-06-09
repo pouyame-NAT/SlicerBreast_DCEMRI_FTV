@@ -151,7 +151,7 @@ def gunzipAllFilesDCE(exampath,dce_folder):
     #Edit 2/4/2021: Only do this if all of the DICOMs are gzipped
     if(len(filesdcmgz) == len(files)):
         cmd_base = r'"C:\Program Files\7-Zip\7z" x '
-        cmd_7z = cmd_base + dcegzipped_paths[0] + '\*' + ' -o' + dcegunzip_dest_paths[0]
+        cmd_7z = cmd_base + dcegzipped_paths[0] + r'\*' + ' -o' + dcegunzip_dest_paths[0]
         os.system(cmd_7z) #execute above command
     else:
         #Edit 2/4/2021: If all the DICOMs are not gzipped, use copy_tree
@@ -171,7 +171,7 @@ def gunzipAllFilesDCE(exampath,dce_folder):
             #Edit 2/4/2021: Once you've looped through the files to ensure that all are gzipped,
             #gunzip all of them to the new gunzipped directory.
             cmd_base = r'"C:\Program Files\7-Zip\7z" x '
-            cmd_7z = cmd_base + dcegzipped_paths[0] + '\*' + ' -o' + dcegunzip_dest_paths[0]
+            cmd_7z = cmd_base + dcegzipped_paths[0] + r'\*' + ' -o' + dcegunzip_dest_paths[0]
             os.system(cmd_7z) #execute above command
 
     return
