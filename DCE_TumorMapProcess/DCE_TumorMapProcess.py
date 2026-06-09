@@ -67,7 +67,7 @@ def _ensureVolumeDisplayNode(volumeNode):
   if volumeNode is None:
     return None
   if volumeNode.GetDisplayNode() is None:
-    slicer.modules.volumes.logic().CreateDefaultVolumeDisplayNodes(volumeNode)
+    volumeNode.CreateDefaultDisplayNodes()
   return volumeNode.GetDisplayNode()
 
 nib = _importOptional('nibabel')

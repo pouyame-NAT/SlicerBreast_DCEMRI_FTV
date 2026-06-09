@@ -97,7 +97,7 @@ from Breast_DCEMRI_FTV_plugins1 import gzip_gunzip_pyfuncs
 
 def _configureVolumeNodeForDisplay(volumeNode, rasToIjkMatrix):
   volumeNode.SetRASToIJKMatrix(rasToIjkMatrix)
-  slicer.modules.volumes.logic().CreateDefaultVolumeDisplayNodes(volumeNode)
+  volumeNode.CreateDefaultDisplayNodes()
   displayNode = volumeNode.GetDisplayNode()
   if displayNode:
     displayNode.SetAutoWindowLevel(True)
