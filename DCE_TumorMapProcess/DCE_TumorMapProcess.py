@@ -47,8 +47,11 @@ def _pipEnsure(package):
   try:
     import slicer.packaging
     slicer.packaging.pip_ensure(package, requester="Breast_DCEMRI_FTV")
-  except AttributeError:
-    slicer.util.pip_install(package)
+  except (AttributeError, ImportError, ModuleNotFoundError):
+    try:
+      slicer.util.pip_install(package)
+    except Exception:
+      slicer.util.pip_install(f"--user {package}")
 
 def _importOptional(package, moduleName=None):
   moduleName = moduleName or package
