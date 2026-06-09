@@ -75,6 +75,7 @@ import pathlib
 #7/27/2021: Start with Plugin folder import
 import Breast_DCEMRI_FTV_plugins1
 from Breast_DCEMRI_FTV_plugins1 import Get_header_info_all_manufacturer
+from Breast_DCEMRI_FTV_plugins1.Get_header_info_all_manufacturer import findDicomFilePaths
 from Breast_DCEMRI_FTV_plugins1 import read_DCE_images_to_numpy
 from Breast_DCEMRI_FTV_plugins1 import Exam_Ident_and_timing
 from Breast_DCEMRI_FTV_plugins1 import ident_gzipped_exam
@@ -320,143 +321,131 @@ class DCE_IDandPhaseSelectWidget(ScriptedLoadableModuleWidget):
       #6/28/2021: Read info from DICOM header instead of
       #directory for 'generic' exams with other directory structures
       folders = [directory for directory in os.listdir(self.exampath) if os.path.isdir(os.path.join(self.exampath,directory))]
-      dcm_folder_found = 0
       for i in range(len(folders)):
         curr_path = os.path.join(self.exampath,folders[i])
-        curr_files = [f for f in os.listdir(curr_path) if f.endswith('.dcm')]
-        curr_FILES = [f for f in os.listdir(curr_path) if f.endswith('.DCM')]
-        files_noext = [f for f in os.listdir(curr_path) if f.isdigit()]
+        dcm_paths = findDicomFilePaths(curr_path, minFiles=3)
+        if len(dcm_paths) == 0:
+          continue
 
-        if(len(curr_files) > 2):
-          dcm1path = os.path.join(curr_path,curr_files[0])
-          dcm_folder_found = 1
-
-        if(len(curr_FILES) > 2):
-          dcm1path = os.path.join(curr_path,curr_FILES[0])
-          dcm_folder_found = 1
-
-        if(len(files_noext) > 2):
-          dcm1path = os.path.join(curr_path,files_noext[0])
-          dcm_folder_found = 1
-
-        if(dcm_folder_found == 1):
-          hdr_dcm1 = pydicom.dcmread(dcm1path,stop_before_pixels = True)
+        dcm1path = dcm_paths[0]
+        hdr_dcm1 = pydicom.dcmread(dcm1path,stop_before_pixels = True)
+        try:
+          self.studystr = hdr_dcm1[0x12,0x10].value #Clinical Trial Sponsor Name
+        except:
           try:
-            self.studystr = hdr_dcm1[0x12,0x10].value #Clinical Trial Sponsor Name
+            self.studystr = hdr_dcm1[0x8,0x1030].value #Study Description
           except:
-            try:
-              self.studystr = hdr_dcm1[0x8,0x1030].value #Study Description
-            except:
-              self.studystr = 'Trial Name Unknown'
+            self.studystr = 'Trial Name Unknown'
 
+        try:
+          self.sitestr = hdr_dcm1[0x12,0x31].value #Clinical Trial Site Name
+        except:
           try:
-            self.sitestr = hdr_dcm1[0x12,0x31].value #Clinical Trial Site Name
+            self.sitestr = hdr_dcm1[0x8,0x80].value #Institution Name
           except:
-            try:
-              self.sitestr = hdr_dcm1[0x8,0x80].value #Institution Name
-            except:
-              self.sitestr = 'Site Unknown'
+            self.sitestr = 'Site Unknown'
 
-          try:
-            self.idstr = hdr_dcm1[0x12,0x40].value #Clinical Trial Subject ID
-          except:
-            self.idstr = 'ID Unknown'
+        try:
+          self.idstr = hdr_dcm1[0x12,0x40].value #Clinical Trial Subject ID
+        except:
+          self.idstr = 'ID Unknown'
 
-          try:
-            self.visitstr = hdr_dcm1[0x12,0x50].value #Clinical Trial Time Point ID
-            #7/4/2021: Try to use directory structure if visit number not found
-            #in Clinical Trial Time Point id header field
-            if('1' not in self.visitstr and '2' not in self.visitstr and '3' not in self.visitstr and '4' not in self.visitstr and '5' not in self.visitstr):
-              #6/29/2021: Default to 'Visit unknown',
-              #change this if visit is found in exampath
-              if(self.studystr == 'ispy_2022' or self.studystr == 'ispy2.2' or ('//researchfiles' in self.exampath and 'ispy_2022' in self.exampath)):
-                self.visitstr = 'Visit unknown'
-                if('v10' in self.exampath):
-                  self.visitstr = 'A0'
-              
-                if('v20' in self.exampath):
-                  self.visitstr = 'A3W'
-              
-                if('v25' in self.exampath):
-                  self.visitstr = 'A6W'
-              
-                if('v30' in self.exampath):
-                  self.visitstr = 'A12W'
+        try:
+          self.visitstr = hdr_dcm1[0x12,0x50].value #Clinical Trial Time Point ID
+          #7/4/2021: Try to use directory structure if visit number not found
+          #in Clinical Trial Time Point id header field
+          if('1' not in self.visitstr and '2' not in self.visitstr and '3' not in self.visitstr and '4' not in self.visitstr and '5' not in self.visitstr):
+            #6/29/2021: Default to 'Visit unknown',
+            #change this if visit is found in exampath
+            if(self.studystr == 'ispy_2022' or self.studystr == 'ispy2.2' or ('//researchfiles' in self.exampath and 'ispy_2022' in self.exampath)):
+              self.visitstr = 'Visit unknown'
+              if('v10' in self.exampath):
+                self.visitstr = 'A0'
 
-                if('v35' in self.exampath):
-                  self.visitstr = 'AC2'
+              if('v20' in self.exampath):
+                self.visitstr = 'A3W'
 
-                if('v40' in self.exampath):
-                  self.visitstr = 'S1'
-              
-                if('v71' in self.exampath):
-                  self.visitstr = 'B3W'
+              if('v25' in self.exampath):
+                self.visitstr = 'A6W'
 
-                if('v72' in self.exampath):
-                  self.visitstr = 'B6W'
+              if('v30' in self.exampath):
+                self.visitstr = 'A12W'
 
-                if('v73' in self.exampath):
-                  self.visitstr = 'B12W'
+              if('v35' in self.exampath):
+                self.visitstr = 'AC2'
 
-              else:
-                self.visitstr = 'Visit unknown'
-                if('v10' in self.exampath):
-                  self.visitstr = 'MR1'
-              
-                if('v20' in self.exampath):
-                  self.visitstr = 'MR2'
+              if('v40' in self.exampath):
+                self.visitstr = 'S1'
 
-                if('v30' in self.exampath):
-                  self.visitstr = 'MR3'
+              if('v71' in self.exampath):
+                self.visitstr = 'B3W'
 
-                if('v40' in self.exampath):
-                  self.visitstr = 'MR4'
+              if('v72' in self.exampath):
+                self.visitstr = 'B6W'
 
-          except:
-          #6/29/2021: Default to 'Visit unknown',
-          #change this is visit is found in exampath
-              if(self.studystr == 'ispy_2022' or self.studystr == 'ispy2.2' or ('//researchfiles' in self.exampath and 'ispy_2022' in self.exampath)):
-                self.visitstr = 'Visit unknown'
-                if('v10' in self.exampath):
-                  self.visitstr = 'A0'
-              
-                if('v20' in self.exampath):
-                  self.visitstr = 'A3W'
-              
-                if('v25' in self.exampath):
-                  self.visitstr = 'A6W'
-              
-                if('v30' in self.exampath):
-                  self.visitstr = 'A12W'
+              if('v73' in self.exampath):
+                self.visitstr = 'B12W'
 
-                if('v35' in self.exampath):
-                  self.visitstr = 'AC2'
+            else:
+              self.visitstr = 'Visit unknown'
+              if('v10' in self.exampath):
+                self.visitstr = 'MR1'
 
-                if('v40' in self.exampath):
-                  self.visitstr = 'S1'
-              
-                if('v71' in self.exampath):
-                  self.visitstr = 'B3W'
+              if('v20' in self.exampath):
+                self.visitstr = 'MR2'
 
-                if('v72' in self.exampath):
-                  self.visitstr = 'B6W'
+              if('v30' in self.exampath):
+                self.visitstr = 'MR3'
 
-                if('v73' in self.exampath):
-                  self.visitstr = 'B12W'
+              if('v40' in self.exampath):
+                self.visitstr = 'MR4'
 
-              else:
-                self.visitstr = 'Visit unknown'
-                if('v10' in self.exampath):
-                  self.visitstr = 'MR1'
-              
-                if('v20' in self.exampath):
-                  self.visitstr = 'MR2'
+        except:
+        #6/29/2021: Default to 'Visit unknown',
+        #change this is visit is found in exampath
+            if(self.studystr == 'ispy_2022' or self.studystr == 'ispy2.2' or ('//researchfiles' in self.exampath and 'ispy_2022' in self.exampath)):
+              self.visitstr = 'Visit unknown'
+              if('v10' in self.exampath):
+                self.visitstr = 'A0'
 
-                if('v30' in self.exampath):
-                  self.visitstr = 'MR3'
+              if('v20' in self.exampath):
+                self.visitstr = 'A3W'
 
-                if('v40' in self.exampath):
-                  self.visitstr = 'MR4'
+              if('v25' in self.exampath):
+                self.visitstr = 'A6W'
+
+              if('v30' in self.exampath):
+                self.visitstr = 'A12W'
+
+              if('v35' in self.exampath):
+                self.visitstr = 'AC2'
+
+              if('v40' in self.exampath):
+                self.visitstr = 'S1'
+
+              if('v71' in self.exampath):
+                self.visitstr = 'B3W'
+
+              if('v72' in self.exampath):
+                self.visitstr = 'B6W'
+
+              if('v73' in self.exampath):
+                self.visitstr = 'B12W'
+
+            else:
+              self.visitstr = 'Visit unknown'
+              if('v10' in self.exampath):
+                self.visitstr = 'MR1'
+
+              if('v20' in self.exampath):
+                self.visitstr = 'MR2'
+
+              if('v30' in self.exampath):
+                self.visitstr = 'MR3'
+
+              if('v40' in self.exampath):
+                self.visitstr = 'MR4'
+        break
 
     #7/26/2021: If this step fails, DICOMs in exam directory are compressed.
     try:

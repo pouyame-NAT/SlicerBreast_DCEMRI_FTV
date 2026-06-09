@@ -29,33 +29,42 @@ import numpy as np
 from statistics import mode
 import hashlib
 
+def _dicomFileNamesInDirectory(directory):
+    names = []
+    for f in os.listdir(directory):
+        full = os.path.join(directory, f)
+        if not os.path.isfile(full):
+            continue
+        if f.endswith('.dcm') or f.endswith('.DCM') or f.isdigit():
+            names.append(f)
+    return sorted(names)
+
+def findDicomFilePaths(folderpath, minFiles=1):
+    """Return sorted full paths to DICOM files in folderpath or its subfolders."""
+    names = _dicomFileNamesInDirectory(folderpath)
+    if len(names) >= minFiles:
+        return [os.path.join(folderpath, n) for n in names]
+
+    for sub in sorted(os.listdir(folderpath)):
+        subpath = os.path.join(folderpath, sub)
+        if not os.path.isdir(subpath):
+            continue
+        sub_names = _dicomFileNamesInDirectory(subpath)
+        if len(sub_names) >= minFiles:
+            return [os.path.join(subpath, n) for n in sub_names]
+    return []
+
 #Class FolderInfo is class that is used to construct objects with all of the header info for a particular folder in an exam.
 #one class object per DICOM folder within exam
 class FolderInfo:
     def __init__(self,folderpath):
         #switched from sitk method to os.listdir method because it is much faster
         #edit 5/29/2020: added verification that we're reading .dcm files because some numbered folders might not have DICOMs in them
-        files = [f for f in os.listdir(folderpath) if f.endswith('.dcm')]
-        FILES = [f for f in os.listdir(folderpath) if f.endswith('.DCM')]
-        files_noext = [f for f in os.listdir(folderpath) if f.isdigit()] #edit 1/26/2021: In some folders, there is a series of DICOM images
-                                                                         #with no .dcm or .DCM extension, but all the files have a number as the filename.
+        dcm_files = findDicomFilePaths(folderpath, minFiles=1)
 
-        if(len(files)>0 or len(FILES)>0 or len(files_noext) > 0):
-
-            if len(files)>0:
-                dcm_files = sorted(files)
-                img1path = os.path.join(folderpath,dcm_files[0])
-                imgendpath = os.path.join(folderpath,dcm_files[len(dcm_files)-1])
-
-            if len(FILES)>0:
-                dcm_files = sorted(FILES)
-                img1path = os.path.join(folderpath,dcm_files[0])
-                imgendpath = os.path.join(folderpath,dcm_files[len(dcm_files)-1])
-
-            if len(files_noext)>0:
-                dcm_files = sorted(files_noext)
-                img1path = os.path.join(folderpath,dcm_files[0])
-                imgendpath = os.path.join(folderpath,dcm_files[len(dcm_files)-1])
+        if(len(dcm_files) > 0):
+            img1path = dcm_files[0]
+            imgendpath = dcm_files[-1]
 
             print("Reading header from file:")
             print(img1path)
@@ -321,21 +330,16 @@ def fillExamFolderInfoStructures(exampath):
     img_folders = []
     for i in range(len(folders)):
         curr_path = os.path.join(exampath,folders[i])
-        curr_files = [f for f in os.listdir(curr_path) if f.endswith('.dcm')]
-        curr_FILES = [f for f in os.listdir(curr_path) if f.endswith('.DCM')]
-        curr_files_noext = [f for f in os.listdir(curr_path) if f.isdigit()] #edit 1/26/2021: In some folders, there is a series of DICOM images
-                                                                         #with no .dcm or .DCM extension, but all the files have a number as the filename.
 
         #Edit 7/6/2020: Program code to not count SlicerReports folder as an image folder
-        #Edit 10/28/2020: Program code to only look at folders that have numerical names
-        #Edit 7/6/2021: To make compatible with TCIA Duke exams, must consider folders that start
-        #with a number as image folders too.
-        if( (len(curr_files)>0 or len(curr_FILES)>0 or len(curr_files_noext)>0) and ('SlicerReport' not in folders[i]) and (folders[i].isdecimal() or folders[i][0].isdecimal()) ):
+        if('SlicerReport' in folders[i]):
+            continue
+
+        if len(findDicomFilePaths(curr_path, minFiles=1)) > 0:
             if(folders[i].isdecimal()):
                 img_folders.append(int(folders[i]))
             else:
-                if(folders[i][0].isdecimal()):
-                    img_folders.append(folders[i])
+                img_folders.append(folders[i])
 
     img_folders = sorted(img_folders) #Edit 2/16/2021: Sort the folders in increasing numerical order
                                       #because that is more user-friendly for manual DCE folder ID.
