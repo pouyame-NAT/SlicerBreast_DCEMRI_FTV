@@ -54,6 +54,47 @@ def findDicomFilePaths(folderpath, minFiles=1):
             return [os.path.join(subpath, n) for n in sub_names]
     return []
 
+def _folderLabelFromPath(relative_path):
+    base_name = os.path.basename(relative_path)
+    if os.sep not in relative_path and base_name.isdecimal():
+        return int(base_name)
+    return relative_path.replace('\\', '/')
+
+def _folderSortKey(label):
+    parts = str(label).replace('\\', '/').split('/')
+    key = []
+    for part in parts:
+        if part.isdecimal():
+            key.append((0, int(part)))
+        else:
+            key.append((1, part))
+    return key
+
+def _collectImageFolderPaths(exampath):
+    """Return exam-relative paths to folders that contain DICOM series."""
+    img_folder_paths = []
+    folders = [directory for directory in os.listdir(exampath) if os.path.isdir(os.path.join(exampath, directory))]
+
+    for folder in folders:
+        if 'SlicerReport' in folder:
+            continue
+
+        curr_path = os.path.join(exampath, folder)
+        if len(_dicomFileNamesInDirectory(curr_path)) >= 1:
+            img_folder_paths.append(folder)
+            continue
+
+        nested = []
+        for sub in sorted(os.listdir(curr_path)):
+            subpath = os.path.join(curr_path, sub)
+            if os.path.isdir(subpath) and len(_dicomFileNamesInDirectory(subpath)) >= 1:
+                nested.append(os.path.join(folder, sub))
+
+        if len(nested) > 0:
+            img_folder_paths.extend(nested)
+
+    return img_folder_paths
+
 #Class FolderInfo is class that is used to construct objects with all of the header info for a particular folder in an exam.
 #one class object per DICOM folder within exam
 class FolderInfo:
@@ -322,36 +363,15 @@ class FolderInfo:
 
 
 def fillExamFolderInfoStructures(exampath):
-    #return list of folders in exampath
-    folders = [directory for directory in os.listdir(exampath) if os.path.isdir(os.path.join(exampath,directory))]
-
-    #Edit 5/29/2020: Instead of using folder name as criterion, check if the folder actually has
-    #DICOMs in and add to img_folders only if it does have DICOMs.
-    img_folders = []
-    for i in range(len(folders)):
-        curr_path = os.path.join(exampath,folders[i])
-
-        #Edit 7/6/2020: Program code to not count SlicerReports folder as an image folder
-        if('SlicerReport' in folders[i]):
-            continue
-
-        if len(findDicomFilePaths(curr_path, minFiles=1)) > 0:
-            if(folders[i].isdecimal()):
-                img_folders.append(int(folders[i]))
-            else:
-                img_folders.append(folders[i])
-
-    img_folders = sorted(img_folders) #Edit 2/16/2021: Sort the folders in increasing numerical order
-                                      #because that is more user-friendly for manual DCE folder ID.
+    img_folder_paths = _collectImageFolderPaths(exampath)
+    img_folders = sorted([_folderLabelFromPath(path) for path in img_folder_paths], key=_folderSortKey)
     print(img_folders)
 
-    #using list of DICOM image folders, make list of structures with DICOM header info from each folder
     all_folders_info = []
     for j in range(len(img_folders)):
-        curr_path = os.path.join(exampath,str(img_folders[j]))
+        curr_path = os.path.join(exampath, str(img_folders[j]))
         curr_folder_info = FolderInfo(curr_path)
         all_folders_info.append(curr_folder_info)
-
 
     return img_folders, all_folders_info
 
