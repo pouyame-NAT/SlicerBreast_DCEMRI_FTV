@@ -63,6 +63,13 @@ def _importOptional(package, moduleName=None):
     _pipEnsure(package)
     return __import__(moduleName)
 
+def _ensureVolumeDisplayNode(volumeNode):
+  if volumeNode is None:
+    return None
+  if volumeNode.GetDisplayNode() is None:
+    slicer.modules.volumes.logic().CreateDefaultVolumeDisplayNodes(volumeNode)
+  return volumeNode.GetDisplayNode()
+
 nib = _importOptional('nibabel')
 cv2 = _importOptional('cv2', 'cv2')
 nrrd = _importOptional('pynrrd', 'nrrd')
@@ -612,14 +619,21 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
     #Create ROI and add it to scene
     #Edit 6/8/2020: Make ROI always at center of image, regardless of image size
     inputVolume = self.inputSelector.currentNode()
+    if inputVolume is None:
+      slicer.util.errorDisplay("No volume loaded. Run Module 1 first.")
+      return
+    displayNode = _ensureVolumeDisplayNode(inputVolume)
+    if displayNode is None:
+      slicer.util.errorDisplay("Could not create display node for loaded volume.")
+      return
+    displayNode.SetAutoWindowLevel(False) #Do this to prevent auto window leveling
+    self.windowmin = displayNode.GetWindowLevelMin()
+    self.windowmax = displayNode.GetWindowLevelMax()
+
     img = inputVolume.GetImageData()
     rows,cols,slices = img.GetDimensions()
     roicenter = np.array([int(rows/2),int(cols/2),int(slices/2)])
     roiradius = np.array([100,100,40])
-
-    inputVolume.GetDisplayNode().SetAutoWindowLevel(False) #Do this to prevent auto window leveling
-    self.windowmin = inputVolume.GetDisplayNode().GetWindowLevelMin()
-    self.windowmax = inputVolume.GetDisplayNode().GetWindowLevelMax()
 
     #Read current node name
     self.currentnodename = self.inputSelector.currentNode().GetName()
@@ -1611,8 +1625,10 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
       slicer.util.setSliceViewerLayers(foreground=self.segment_node,foregroundOpacity = self.fopac)
 
     inputVolume = self.inputSelector.currentNode()
-    inputVolume.GetDisplayNode().SetAutoWindowLevel(False) #Do this to prevent auto window leveling
-    inputVolume.GetDisplayNode().SetWindowLevel(self.window,self.level) #set window level to match prior image
+    displayNode = _ensureVolumeDisplayNode(inputVolume)
+    if displayNode is not None:
+      displayNode.SetAutoWindowLevel(False) #Do this to prevent auto window leveling
+      displayNode.SetWindowLevel(self.window,self.level) #set window level to match prior image
     img = inputVolume.GetImageData()
     rows,cols,slices = img.GetDimensions()
     #read inputVolume to numpy array

@@ -26,56 +26,61 @@ import re
 import os
 import slicer
 import vtk
-import SimpleITK as sitk
-import sitkUtils
 
-def _dicomFileNamesInDirectory(path):
-    names = []
-    for f in os.listdir(path):
-        full = os.path.join(path, f)
-        if not os.path.isfile(full):
-            continue
-        if f.endswith('.dcm') or f.endswith('.DCM') or f.isdigit():
-            names.append(f)
-    return sorted(names)
+def _dicomDatabaseIsOpen():
+    db = slicer.dicomDatabase
+    if db is None:
+        return False
+    try:
+        return db.database().isOpen()
+    except AttributeError:
+        return False
 
-def _dicomSeriesFileNamesInDirectory(path):
-    series_ids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(path)
-    if len(series_ids) > 0:
-        return list(sitk.ImageSeriesReader.GetGDCMSeriesFileNames(path, series_ids[0]))
-    return addFullPathToFileList(path, _dicomFileNamesInDirectory(path))
+def _ensureDicomDatabaseOpen():
+    if _dicomDatabaseIsOpen():
+        return
 
-def _dicomSeriesToNumpy(dicom_names):
-    reader = sitk.ImageSeriesReader()
-    reader.SetFileNames(list(dicom_names))
-    sitk_image = reader.Execute()
-    volume = sitkUtils.PushVolumeToSlicer(sitk_image)
+    db = slicer.dicomDatabase
+    if db is None:
+        return
 
+    databaseFilename = None
+    try:
+        databaseFilename = slicer.app.applicationLogic().GetDICOMDatabaseFilename()
+    except AttributeError:
+        pass
+
+    if databaseFilename:
+        db.openDatabase(databaseFilename)
+        if _dicomDatabaseIsOpen():
+            return
+
+    db_dir = os.path.join(os.path.expanduser('~'), '.slicer', 'FTV_DICOM')
+    os.makedirs(db_dir, exist_ok=True)
+    db.openDatabase(os.path.join(db_dir, 'DICOM.db'))
+
+def _loadDicomSeriesVolume(dicom_names):
+    _ensureDicomDatabaseOpen()
+    plugin = slicer.modules.dicomPlugins['DICOMScalarVolumePlugin']()
+    loadables = plugin.examine([dicom_names])
+    if not loadables:
+        raise RuntimeError('DICOMScalarVolumePlugin found no loadable series')
+    return plugin.load(loadables[0])
+
+def _volumeToNumpy(volume):
     m = vtk.vtkMatrix4x4()
     volume.GetRASToIJKMatrix(m)
 
     npimg = slicer.util.arrayFromVolume(volume)
     slicer.mrmlScene.RemoveNode(volume)
-    return m, npimg
-
-def _volumeArrayToNumpy(m, npimg, to_float64=True):
     npimg = np.transpose(npimg, (2, 1, 0))
-    if to_float64:
-        npimg = npimg.astype('float64')
-    else:
-        try:
-            npimg = npimg.astype('float64')
-        except:
-            try:
-                npimg = npimg.astype('float32')
-            except:
-                npimg = npimg.astype('int8')
     return m, npimg
 
 #Philips correct z-order of slices
 #Edit 6/10/2020: By checking both OHSC and UChic exams from Philips, I realized that the routine from
 #multivolume_folder_sort always leads to the correct orientation in the report, regardless of if the
 #filenames are in reverse order or not -- This is for Philips only
+
 
 #GE & Siemens correct z-order of slices
 #Update--It appears that regular, increasing order of Slice Location works for RMH exams, but not for UCSD exams
@@ -86,14 +91,17 @@ def _volumeArrayToNumpy(m, npimg, to_float64=True):
 #4/3/2020: New version of readInputToNumpy using SimpleITK
 #Edit 6/16/2020: Incorporate Andrey's suggested method of reading DICOM series into Slicer
 def readInputToNumpy(path):
-    dicom_names = _dicomSeriesFileNamesInDirectory(path)
-    m, npimg = _dicomSeriesToNumpy(dicom_names)
+    dicom_names = os.listdir(path)
+    dicom_names = addFullPathToFileList(path, dicom_names)
+
+    volume = _loadDicomSeriesVolume(dicom_names)
+    m, npimg = _volumeToNumpy(volume)
     print("image dimensions")
     print(np.shape(npimg))
     print("image min and max after arrayFromVolume")
     print(np.amin(npimg))
     print(np.amax(npimg))
-    m, npimg = _volumeArrayToNumpy(m, npimg, to_float64=True)
+    npimg = npimg.astype('float64')
     print("image min and max after float64 conversion")
     print(np.amin(npimg))
     print(np.amax(npimg))
@@ -116,7 +124,6 @@ def earlyOrLateImgSelect(postContrastNum,dce_folders,exampath):
     a = readInputToNumpy(path)
     return a
 
-
 #For this function, need loop to concatenate full path to filename at each iteration
 def readPhilipsImageToNumpy(exampath,dce_folders,fsort,postContrastNum):
 
@@ -130,7 +137,7 @@ def readPhilipsImageToNumpy(exampath,dce_folders,fsort,postContrastNum):
         dcepath = os.path.join(exampath,str(dce_folders[0]))
 
     dicom_names = fsort[postContrastNum][:]
-    dicom_names = addFullPathToFileList(dcepath,dicom_names) #call function for converting list of DCM filenames to list of DCM file names with path included
+    dicom_names = addFullPathToFileList(dcepath,dicom_names)
 
     #7/20/2021: If image dimensions > 700 x 700 x 200, cut off
     #20 slices from each side. Hopefully this prevents numpy
@@ -143,12 +150,21 @@ def readPhilipsImageToNumpy(exampath,dce_folders,fsort,postContrastNum):
     except:
         print("Not checking image size, therefore will not remove slices.")
 
-    m, npimg = _dicomSeriesToNumpy(dicom_names)
+    volume = _loadDicomSeriesVolume(dicom_names)
+    m, npimg = _volumeToNumpy(volume)
     print("image min and max after arrayFromVolume")
     print(dcepath)
     print(np.amin(npimg))
     print(np.amax(npimg))
-    return _volumeArrayToNumpy(m, npimg, to_float64=False)
+    try:
+        npimg = npimg.astype('float64')
+    except:
+        try:
+            npimg = npimg.astype('float32')
+        except:
+            npimg = npimg.astype('int8')
+
+    return m, npimg
 
 #Wrote this function for quickly converting list of DCM filenames to list of DCM file names with path included
 def addFullPathToFileList(path,files):
@@ -157,4 +173,3 @@ def addFullPathToFileList(path,files):
         fullfilei = os.path.join(path,filei)
         files[i] = fullfilei
     return files
-

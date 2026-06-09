@@ -95,6 +95,14 @@ from Breast_DCEMRI_FTV_plugins1 import gzip_gunzip_pyfuncs
 #If user loads other visits, this will have value of 0 for those visits so that
 #you don't save workspace for those visits.
 
+def _configureVolumeNodeForDisplay(volumeNode, rasToIjkMatrix):
+  volumeNode.SetRASToIJKMatrix(rasToIjkMatrix)
+  slicer.modules.volumes.logic().CreateDefaultVolumeDisplayNodes(volumeNode)
+  displayNode = volumeNode.GetDisplayNode()
+  if displayNode:
+    displayNode.SetAutoWindowLevel(True)
+  return volumeNode
+
 def loadPreEarlyLate(exampath,visitnum,orig,dce_folders_manual,dce_ind_manual,earlyadd,lateadd):
 
   #6/28/2021: Make this compatible with exams that don't use
@@ -163,7 +171,7 @@ def loadPreEarlyLate(exampath,visitnum,orig,dce_folders_manual,dce_ind_manual,ea
   adisp = np.transpose(a,(2,1,0)) #nii needs x,y,z to have same orientation as DICOM, but for numpy array you need to return to dimension order z,y,x
   precontrast_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",prenodestr) #add this image to dropdown node with name precontrast
   slicer.util.updateVolumeFromArray(precontrast_node, adisp)
-  precontrast_node.SetRASToIJKMatrix(m)
+  _configureVolumeNodeForDisplay(precontrast_node, m)
 
   m1 = vtk.vtkMatrix4x4()
   precontrast_node.GetIJKToRASMatrix(m1)
@@ -193,7 +201,7 @@ def loadPreEarlyLate(exampath,visitnum,orig,dce_folders_manual,dce_ind_manual,ea
   bdisp = np.transpose(b,(2,1,0)) #nii needs x,y,z to have same orientation as DICOM, but for numpy array you need to return to dimension order z,y,x
   early_post_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",earlynodestr) #add this image to dropdown node with name precontrast
   slicer.util.updateVolumeFromArray(early_post_node, bdisp)
-  early_post_node.SetRASToIJKMatrix(m)
+  _configureVolumeNodeForDisplay(early_post_node, m)
 
   progressBar.value = 75
   progressBar.labelText = 'Early post-contrast image loaded to Slicer'
@@ -218,7 +226,10 @@ def loadPreEarlyLate(exampath,visitnum,orig,dce_folders_manual,dce_ind_manual,ea
   cdisp = np.transpose(c,(2,1,0)) #nii needs x,y,z to have same orientation as DICOM, but for numpy array you need to return to dimension order z,y,x
   late_post_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode",latenodestr) #add this image to dropdown node with name precontrast
   slicer.util.updateVolumeFromArray(late_post_node, cdisp)
-  late_post_node.SetRASToIJKMatrix(m)
+  _configureVolumeNodeForDisplay(late_post_node, m)
+
+  slicer.util.setSliceViewerLayers(background=precontrast_node)
+  slicer.app.applicationLogic().FitSliceToAll()
 
   progressBar.value = 99
   progressBar.labelText = 'Late post-contrast image loaded to Slicer'
