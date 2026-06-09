@@ -26,6 +26,51 @@ import re
 import os
 import slicer
 import vtk
+import SimpleITK as sitk
+import sitkUtils
+
+def _dicomFileNamesInDirectory(path):
+    names = []
+    for f in os.listdir(path):
+        full = os.path.join(path, f)
+        if not os.path.isfile(full):
+            continue
+        if f.endswith('.dcm') or f.endswith('.DCM') or f.isdigit():
+            names.append(f)
+    return sorted(names)
+
+def _dicomSeriesFileNamesInDirectory(path):
+    series_ids = sitk.ImageSeriesReader.GetGDCMSeriesIDs(path)
+    if len(series_ids) > 0:
+        return list(sitk.ImageSeriesReader.GetGDCMSeriesFileNames(path, series_ids[0]))
+    return addFullPathToFileList(path, _dicomFileNamesInDirectory(path))
+
+def _dicomSeriesToNumpy(dicom_names):
+    reader = sitk.ImageSeriesReader()
+    reader.SetFileNames(list(dicom_names))
+    sitk_image = reader.Execute()
+    volume = sitkUtils.PushVolumeToSlicer(sitk_image)
+
+    m = vtk.vtkMatrix4x4()
+    volume.GetRASToIJKMatrix(m)
+
+    npimg = slicer.util.arrayFromVolume(volume)
+    slicer.mrmlScene.RemoveNode(volume)
+    return m, npimg
+
+def _volumeArrayToNumpy(m, npimg, to_float64=True):
+    npimg = np.transpose(npimg, (2, 1, 0))
+    if to_float64:
+        npimg = npimg.astype('float64')
+    else:
+        try:
+            npimg = npimg.astype('float64')
+        except:
+            try:
+                npimg = npimg.astype('float32')
+            except:
+                npimg = npimg.astype('int8')
+    return m, npimg
 
 #Philips correct z-order of slices
 #Edit 6/10/2020: By checking both OHSC and UChic exams from Philips, I realized that the routine from
@@ -42,28 +87,14 @@ import vtk
 #4/3/2020: New version of readInputToNumpy using SimpleITK
 #Edit 6/16/2020: Incorporate Andrey's suggested method of reading DICOM series into Slicer
 def readInputToNumpy(path):
-    #Edit 6/16/2020: os.listdir and adding full path may be faster
-    dicom_names = os.listdir(path)
-    dicom_names = addFullPathToFileList(path,dicom_names) #call function for converting list of DCM filenames to list of DCM file names with path included
-
-    plugin = slicer.modules.dicomPlugins['DICOMScalarVolumePlugin']()
-    loadables = plugin.examine([dicom_names])
-    volume = plugin.load(loadables[0])
-
-    #store RASToIJKMatrix in m so that you can use this to correct output images' orientations
-    m = vtk.vtkMatrix4x4()
-    volume.GetRASToIJKMatrix(m)
-
-    npimg = slicer.util.arrayFromVolume(volume)
+    dicom_names = _dicomSeriesFileNamesInDirectory(path)
+    m, npimg = _dicomSeriesToNumpy(dicom_names)
     print("image dimensions")
     print(np.shape(npimg))
     print("image min and max after arrayFromVolume")
     print(np.amin(npimg))
     print(np.amax(npimg))
-    slicer.mrmlScene.RemoveNode(volume) #this is how to prevent "unnamed volume ..." from staying in slicer window
-    npimg = np.transpose(npimg,(2,1,0)) #edit 4/27/2020: using dimension order x,y,z gives same orientation as input DICOM (original numpy one is z,y,x)
-    #npimg = np.flip(npimg,2) #apparently slicer method of reading DICOM series always reverses slice order from what we want, so add this flip
-    npimg = npimg.astype('float64') #convert to float64 to avoid dynamic range issues when calculating PE and SER
+    m, npimg = _volumeArrayToNumpy(m, npimg, to_float64=True)
     print("image min and max after float64 conversion")
     print(np.amin(npimg))
     print(np.amax(npimg))
@@ -112,32 +143,12 @@ def readPhilipsImageToNumpy(exampath,dce_folders,fsort,postContrastNum):
     except:
         print("Not checking image size, therefore will not remove slices.")
 
-    plugin = slicer.modules.dicomPlugins['DICOMScalarVolumePlugin']()
-    loadables = plugin.examine([dicom_names])
-    volume = plugin.load(loadables[0])
-
-    #store RASToIJKMatrix in m so that you can use this to correct output images' orientations
-    m = vtk.vtkMatrix4x4()
-    volume.GetRASToIJKMatrix(m)
-
-    npimg = slicer.util.arrayFromVolume(volume)
+    m, npimg = _dicomSeriesToNumpy(dicom_names)
     print("image min and max after arrayFromVolume")
     print(dcepath)
     print(np.amin(npimg))
     print(np.amax(npimg))
-    slicer.mrmlScene.RemoveNode(volume) #this is how to prevent "unnamed volume ..." from staying in slicer window
-
-    npimg = np.transpose(npimg,(2,1,0)) #edit 4/27/2020: using dimension order x,y,z gives same orientation as input DICOM (original numpy one is z,y,x)
-    #npimg = np.flip(npimg,2) #apparently slicer method of reading DICOM series always reverses slice order from what we want, so add this flip
-    try:
-        npimg = npimg.astype('float64') #convert to float64 to avoid dynamic range issues when calculating PE and SER
-    except:
-        try:
-            npimg = npimg.astype('float32')
-        except:
-            npimg = npimg.astype('int8')
-
-    return m, npimg
+    return _volumeArrayToNumpy(m, npimg, to_float64=False)
 
 #Wrote this function for quickly converting list of DCM filenames to list of DCM file names with path included
 def addFullPathToFileList(path,files):
