@@ -32,6 +32,7 @@ import Breast_DCEMRI_FTV_plugins1
 from Breast_DCEMRI_FTV_plugins1 import timing_info_class_all_manufacturer #function for populating structures of timing info from DICOM headers
 from Breast_DCEMRI_FTV_plugins1 import multivolume_folder_sort #function for sorting slices in correct order for a multivolume folder
 from Breast_DCEMRI_FTV_plugins1 import gzip_gunzip_pyfuncs
+from Breast_DCEMRI_FTV_plugins1.Get_header_info_all_manufacturer import findDicomFilePaths
 
 #Function that tells you which post-contrast image # is early or late
 def findClosestTime(imgtimes,time):
@@ -82,21 +83,10 @@ def chooseEarlyLateGE_Siemens(exampath,dce_folders,manufacturer,earlyadd, latead
         phaseslc1paths = []
         for fnum in range(len(dce_folders)):
             curr_path = os.path.join(exampath,str(dce_folders[fnum]))
-            files = [f for f in os.listdir(curr_path) if f.endswith('.dcm')]
-            FILES = [f for f in os.listdir(curr_path) if f.endswith('.DCM')]
-            files_noext = [f for f in os.listdir(curr_path) if f.isdigit()] #edit 1/26/2021: In some folders, there is a series of DICOM images
-                                                                            #with no .dcm or .DCM extension, but all the files have a number as the filename.
-
-            if len(files) > 0:
-                files = sorted(files)
-                curr_img_path = os.path.join(curr_path,files[0])
-            if len(FILES) > 0:
-                FILES = sorted(FILES)
-                curr_img_path = os.path.join(curr_path,FILES[0])
-            if len(files_noext)>0:
-                curr_img_path = os.path.join(curr_path,files_noext[0])
-
-
+            dcm_paths = findDicomFilePaths(curr_path, minFiles=1)
+            if len(dcm_paths) == 0:
+                continue
+            curr_img_path = dcm_paths[0]
             phaseslc1paths.append(curr_img_path)
 
     #use one slice from each phase in same folder if there is only one DCE folder

@@ -328,6 +328,9 @@ class DCE_IDandPhaseSelectWidget(ScriptedLoadableModuleWidget):
           continue
 
         dcm1path = dcm_paths[0]
+        if not os.path.isfile(dcm1path):
+          continue
+
         hdr_dcm1 = pydicom.dcmread(dcm1path,stop_before_pixels = True)
         try:
           self.studystr = hdr_dcm1[0x12,0x10].value #Clinical Trial Sponsor Name
