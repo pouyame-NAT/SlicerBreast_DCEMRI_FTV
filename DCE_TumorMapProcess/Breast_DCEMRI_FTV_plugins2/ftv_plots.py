@@ -62,6 +62,7 @@ def _loadReportLogo(logo_dir):
     return None
 
 def _asRgbUint8(image):
+    import numpy as np
     if image.ndim == 2:
         image = np.stack([image, image, image], axis=-1)
     return np.clip(image, 0, 255).astype(np.uint8)
