@@ -22,6 +22,45 @@
 #images from the MR exam, and other relevant information such as
 #imaging site, visit number, and exam date.
 
+def _loadReportLogo(logo_dir):
+    import os
+    import numpy as np
+    import cv2
+    import matplotlib.image as mpimg
+    import slicer
+
+    candidates = []
+    for name in ('3DSlicerLogo.png', '3DSlicerLogo.PNG'):
+        candidates.append(os.path.join(logo_dir, name))
+    try:
+        slicer_home = slicer.app.slicerHome
+        for name in ('3DSlicerLogo.png', '3DSlicerLogo.PNG', 'Slicer.png'):
+            candidates.append(os.path.join(slicer_home, name))
+    except AttributeError:
+        pass
+
+    for logo_path in candidates:
+        if not os.path.isfile(logo_path):
+            continue
+
+        logo = cv2.imread(logo_path, cv2.IMREAD_COLOR)
+        if logo is not None and logo.size > 0:
+            return cv2.cvtColor(logo, cv2.COLOR_BGR2RGB)
+
+        try:
+            logo = mpimg.imread(logo_path)
+            if logo is None or getattr(logo, 'dtype', None) == object:
+                continue
+            if logo.dtype in (np.float32, np.float64):
+                logo = np.clip(logo * 255.0, 0, 255).astype(np.uint8)
+            if len(logo.shape) == 3 and logo.shape[2] == 4:
+                logo = logo[:, :, :3]
+            return logo
+        except Exception:
+            continue
+
+    return None
+
 def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_folders,nslice,earlyPostContrastNum,latePostContrastNum, earlydiffmm, earlydiffss, latediffmm, latediffss, preimg3d,img3d,ser,tumor_mask,voi_mask,xs,xf,ys,yf,zs,zf,omitCount,omitradii,omitcenters,pct,pre_thresh,pethresh,minconnpix,aff_mat,ijkToRASmat,nodevisstr,window,level,idstr):
     #note: although variable is called ser_colormap, may decide to use regular SER image instead so that colorbar shows true SER values
 
@@ -585,8 +624,9 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     #The full path to ftv_plots.py is
     #automatically stored in __file__ so I'm using that.
     pathtofunc,funcname = os.path.split(os.path.realpath(__file__))
-    logo_path = os.path.join(pathtofunc,'3DSlicerLogo.png')
-    logo = cv2.imread(logo_path)
+    logo = _loadReportLogo(pathtofunc)
+    if logo is None:
+        print("Report logo not found; continuing without logo image.")
 #------------------------Writing txt file--------------------------------------#
     txt_file = open(savenametxt, "w+")
 
@@ -626,7 +666,8 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     plt.axis('off')
     #top right
     a = fig.add_subplot(spec[0,2])
-    imgplot = plt.imshow(logo)
+    if logo is not None:
+        imgplot = plt.imshow(logo)
     plt.axis('off')
 
     #Edit 4/29/2020: Finalized orientation label letters on images

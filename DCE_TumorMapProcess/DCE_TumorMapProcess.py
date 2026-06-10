@@ -70,6 +70,16 @@ def _ensureVolumeDisplayNode(volumeNode):
     volumeNode.CreateDefaultDisplayNodes()
   return volumeNode.GetDisplayNode()
 
+def _configureMarkupsROIDisplay(markupsNode):
+  if markupsNode is None:
+    return
+  markupsNode.CreateDefaultDisplayNodes()
+  displayNode = markupsNode.GetDisplayNode()
+  if displayNode is None:
+    return
+  displayNode.SetFillVisibility(False)
+  displayNode.SetFillOpacity(0.0)
+
 nib = _importOptional('nibabel')
 cv2 = _importOptional('cv2', 'cv2')
 nrrd = _importOptional('pynrrd', 'nrrd')
@@ -786,6 +796,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
     self.roi = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsROINode")
     self.roi.SetXYZ(roicenter_RAS[0], roicenter_RAS[1], roicenter_RAS[2])
     self.roi.SetRadiusXYZ(roiradius_RAS[0], roiradius_RAS[1], roiradius_RAS[2])
+    _configureMarkupsROIDisplay(self.roi)
 
     self.switchimage = True #variable to prevent calling of adjust window level function while changing image
                             #displayed from dropdown menu
@@ -1832,6 +1843,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
         self.omit1.SetXYZ(roicenter_RAS)
         self.omit1.SetRadiusXYZ(omitradius_RAS)
         slicer.mrmlScene.AddNode(self.omit1)
+        _configureMarkupsROIDisplay(self.omit1)
         slicer.util.resetSliceViews()
       else:
         self.omitCount = self.omitCount - 1
@@ -1841,6 +1853,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
         self.omit2.SetXYZ(roicenter_RAS)
         self.omit2.SetRadiusXYZ(omitradius_RAS)
         slicer.mrmlScene.AddNode(self.omit2)
+        _configureMarkupsROIDisplay(self.omit2)
         slicer.util.resetSliceViews()
       else:
         self.omitCount = self.omitCount - 1
@@ -1851,6 +1864,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
         self.omit3.SetXYZ(roicenter_RAS)
         self.omit3.SetRadiusXYZ(omitradius_RAS)
         slicer.mrmlScene.AddNode(self.omit3)
+        _configureMarkupsROIDisplay(self.omit3)
         slicer.util.resetSliceViews()
       else:
         self.omitCount = self.omitCount - 1
@@ -1861,6 +1875,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
         self.omit4.SetXYZ(roicenter_RAS)
         self.omit4.SetRadiusXYZ(omitradius_RAS)
         slicer.mrmlScene.AddNode(self.omit4)
+        _configureMarkupsROIDisplay(self.omit4)
         slicer.util.resetSliceViews()
       else:
         self.omitCount = self.omitCount - 1
@@ -1871,6 +1886,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
         self.omit5.SetXYZ(roicenter_RAS)
         self.omit5.SetRadiusXYZ(omitradius_RAS)
         slicer.mrmlScene.AddNode(self.omit5)
+        _configureMarkupsROIDisplay(self.omit5)
         slicer.util.resetSliceViews()
       else:
         self.omitCount = self.omitCount - 1
@@ -2036,6 +2052,7 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
     #position from xml file
     self.roi.SetXYZ(roicenter)
     self.roi.SetRadiusXYZ(roiradius)
+    _configureMarkupsROIDisplay(self.roi)
 
     #7/16/2021: Before proceeding to check xml file for omits,
     #remove any omits that may already be in the scene.
@@ -2081,26 +2098,31 @@ class DCE_TumorMapProcessWidget(ScriptedLoadableModuleWidget):
           self.omit1.SetXYZ(curr_center)
           self.omit1.SetRadiusXYZ(curr_radius)
           slicer.mrmlScene.AddNode(self.omit1)
+          _configureMarkupsROIDisplay(self.omit1)
 
         if self.omitCount == 2:
           self.omit2.SetXYZ(curr_center)
           self.omit2.SetRadiusXYZ(curr_radius)
           slicer.mrmlScene.AddNode(self.omit2)
+          _configureMarkupsROIDisplay(self.omit2)
 
         if self.omitCount == 3:
           self.omit3.SetXYZ(curr_center)
           self.omit3.SetRadiusXYZ(curr_radius)
           slicer.mrmlScene.AddNode(self.omit3)
+          _configureMarkupsROIDisplay(self.omit3)
 
         if self.omitCount == 4:
           self.omit4.SetXYZ(curr_center)
           self.omit4.SetRadiusXYZ(curr_radius)
           slicer.mrmlScene.AddNode(self.omit4)
+          _configureMarkupsROIDisplay(self.omit4)
 
         if self.omitCount == 5:
           self.omit5.SetXYZ(curr_center)
           self.omit5.SetRadiusXYZ(curr_radius)
           slicer.mrmlScene.AddNode(self.omit5)
+          _configureMarkupsROIDisplay(self.omit5)
 
     #Edit 7/31/2020: Set red and yellow slice positions to center axial and sagittal slices of ROI
     inputVolume = self.inputSelector.currentNode()
