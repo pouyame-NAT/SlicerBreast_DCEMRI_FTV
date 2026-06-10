@@ -61,6 +61,11 @@ def _loadReportLogo(logo_dir):
 
     return None
 
+def _asRgbUint8(image):
+    if image.ndim == 2:
+        image = np.stack([image, image, image], axis=-1)
+    return np.clip(image, 0, 255).astype(np.uint8)
+
 def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_folders,nslice,earlyPostContrastNum,latePostContrastNum, earlydiffmm, earlydiffss, latediffmm, latediffss, preimg3d,img3d,ser,tumor_mask,voi_mask,xs,xf,ys,yf,zs,zf,omitCount,omitradii,omitcenters,pct,pre_thresh,pethresh,minconnpix,aff_mat,ijkToRASmat,nodevisstr,window,level,idstr):
     #note: although variable is called ser_colormap, may decide to use regular SER image instead so that colorbar shows true SER values
 
@@ -141,7 +146,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
                     if ser_slc[r,c] > 1.75 and ser_slc[r,c]<=3:
                         img_wroi_sercolor[r,c] = [255,255,0]
 
-        return img_wroi_sercolor
+        return _asRgbUint8(img_wroi_sercolor)
 
 
 
@@ -667,7 +672,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     #top right
     a = fig.add_subplot(spec[0,2])
     if logo is not None:
-        imgplot = plt.imshow(logo)
+        imgplot = plt.imshow(_asRgbUint8(logo))
     plt.axis('off')
 
     #Edit 4/29/2020: Finalized orientation label letters on images
@@ -692,7 +697,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
 
     #Sagittal cropped slice with SER colorization
     a = fig.add_subplot(spec[1,2])
-    imgplot = plt.imshow(img_sag_clr_crop,aspect=asp)
+    imgplot = plt.imshow(_asRgbUint8(img_sag_clr_crop),aspect=asp)
     txtplot = plt.text((img_sag_clr_crop.shape[1]/50),(img_sag_clr_crop.shape[0]/2),sagleftlbl,fontdict=font) # 1/50 through column range, 1/2 through row range of image
     txtplot = plt.text((47*img_sag_clr_crop.shape[1]/50),(img_sag_clr_crop.shape[0]/2),sagrightlbl,fontdict=font) # 47/50 through column range, 1/2 through row range of image
     txtplot = plt.text((img_sag_clr_crop.shape[1]/2),(5*img_sag_clr_crop.shape[0]/50),sagtoplbl,fontdict=font) #1/2 through column range, 5/50 through row range of image
@@ -719,7 +724,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
     plt.axis('off')
     #Axial cropped slice with SER colorization
     a = fig.add_subplot(spec[2,2])
-    imgplot = plt.imshow(img_ax_clr_crop)
+    imgplot = plt.imshow(_asRgbUint8(img_ax_clr_crop))
     txtplot = plt.text((img_ax_clr_crop.shape[1]/50),(img_ax_clr_crop.shape[0]/2),axleftlbl,fontdict=font) #1/50 through column range, 1/2 through row range of image
     txtplot = plt.text((47*img_ax_clr_crop.shape[1]/50),(img_ax_clr_crop.shape[0]/2),axrightlbl,fontdict=font) #47/50 through column range, 1/2 through row range of image
     txtplot = plt.text((img_ax_clr_crop.shape[1]/2),(5*img_ax_clr_crop.shape[0]/50),axtoplbl,fontdict=font) #1/2 through column range, 5/50 through row range of image
