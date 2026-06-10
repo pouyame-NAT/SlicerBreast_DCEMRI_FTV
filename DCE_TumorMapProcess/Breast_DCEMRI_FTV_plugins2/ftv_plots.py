@@ -63,8 +63,12 @@ def _loadReportLogo(logo_dir):
 
 def _asRgbUint8(image):
     import numpy as np
+    image = np.asarray(image)
     if image.ndim == 2:
         image = np.stack([image, image, image], axis=-1)
+    # ROI grayscale is 0-1 float; SER/ROI marks use 0-255 in the same array.
+    if np.issubdtype(image.dtype, np.floating):
+        image = np.where(image > 1.0, image, image * 255.0)
     return np.clip(image, 0, 255).astype(np.uint8)
 
 def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_folders,nslice,earlyPostContrastNum,latePostContrastNum, earlydiffmm, earlydiffss, latediffmm, latediffss, preimg3d,img3d,ser,tumor_mask,voi_mask,xs,xf,ys,yf,zs,zf,omitCount,omitradii,omitcenters,pct,pre_thresh,pethresh,minconnpix,aff_mat,ijkToRASmat,nodevisstr,window,level,idstr):
@@ -147,7 +151,7 @@ def createPDFreport(gzipped,path,savenamepdf,tempres,fsort,manufacturer,dce_fold
                     if ser_slc[r,c] > 1.75 and ser_slc[r,c]<=3:
                         img_wroi_sercolor[r,c] = [255,255,0]
 
-        return _asRgbUint8(img_wroi_sercolor)
+        return img_wroi_sercolor
 
 
 
